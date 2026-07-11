@@ -71,9 +71,11 @@ const styles: Record<string, React.CSSProperties> = {
 const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1.0);
+  const [fitZoom, setFitZoom] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
   useEffect(() => {
@@ -89,8 +91,39 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
 
   const zoomIn = () => setZoom((z) => Math.min(z + 0.25, 5.0));
   const zoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.25));
-  const fitToScreen = () => setZoom(1.0);
+  const fitToScreen = () => setZoom(fitZoom);
   const actualSize = () => setZoom(1.0);
+
+  const applyAutoFit = useCallback(() => {
+    const container = containerRef.current;
+    const image = imageRef.current;
+    if (!container || !image) return;
+
+    const naturalWidth = image.naturalWidth;
+    const naturalHeight = image.naturalHeight;
+    if (!naturalWidth || !naturalHeight) return;
+
+    const padding = 32;
+    const availableWidth = Math.max(container.clientWidth - padding, 1);
+    const availableHeight = Math.max(container.clientHeight - padding, 1);
+    const scaleX = availableWidth / naturalWidth;
+    const scaleY = availableHeight / naturalHeight;
+    const nextFitZoom = Math.min(scaleX, scaleY, 1);
+
+    setFitZoom(nextFitZoom);
+    setZoom(nextFitZoom);
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      applyAutoFit();
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+    };
+  }, [applyAutoFit]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -101,7 +134,7 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (zoom <= 1) return;
+    if (zoom <= fitZoom) return;
     const el = containerRef.current;
     if (!el) return;
 
@@ -151,11 +184,11 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
         </button>
       </div>
       <div
-        style={{
-          ...styles.imageArea,
-          cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-          userSelect: isDragging ? 'none' : 'auto',
-        }}
+          style={{
+            ...styles.imageArea,
+            cursor: zoom > fitZoom ? (isDragging ? 'grabbing' : 'grab') : 'default',
+            userSelect: isDragging ? 'none' : 'auto',
+          }}
         ref={containerRef}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
@@ -164,9 +197,11 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
         onMouseLeave={stopDragging}
       >
         <img
+          ref={imageRef}
           src={url}
           alt={file.name}
           draggable={false}
+          onLoad={applyAutoFit}
           style={{
             ...styles.image,
             transform: `scale(${zoom})`,

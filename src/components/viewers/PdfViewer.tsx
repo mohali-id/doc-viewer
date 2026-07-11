@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { ViewerProps } from '../../types';
 
@@ -80,10 +80,12 @@ const PdfViewer: React.FC<ViewerProps> = ({ file }) => {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(1.0);
+  const [fitZoom, setFitZoom] = useState(1.0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<any>(null);
 
@@ -195,6 +197,43 @@ const PdfViewer: React.FC<ViewerProps> = ({ file }) => {
     };
   }, [pdfDoc, currentPage, zoom]);
 
+  const applyAutoFit = useCallback(async () => {
+    if (!pdfDoc || !canvasContainerRef.current) return;
+    try {
+      const page = await pdfDoc.getPage(currentPage);
+      const viewport = page.getViewport({ scale: 1 });
+      const container = canvasContainerRef.current;
+      if (!container) return;
+
+      const padding = 32;
+      const availableWidth = Math.max(container.clientWidth - padding, 1);
+      const availableHeight = Math.max(container.clientHeight - padding, 1);
+      const scaleX = availableWidth / viewport.width;
+      const scaleY = availableHeight / viewport.height;
+      const nextFitZoom = Math.min(scaleX, scaleY, 1);
+
+      setFitZoom(nextFitZoom);
+      setZoom(nextFitZoom);
+    } catch {
+      // ignore fit calculation errors
+    }
+  }, [pdfDoc, currentPage]);
+
+  useEffect(() => {
+    void applyAutoFit();
+  }, [applyAutoFit]);
+
+  useEffect(() => {
+    const onResize = () => {
+      void applyAutoFit();
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+    };
+  }, [applyAutoFit]);
+
   useEffect(() => {
     return () => {
       if (renderTaskRef.current) {
@@ -208,7 +247,7 @@ const PdfViewer: React.FC<ViewerProps> = ({ file }) => {
   }, []);
 
   const zoomIn = () => setZoom((z) => Math.min(z + 0.25, 3.0));
-  const zoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.5));
+  const zoomOut = () => setZoom((z) => Math.max(z - 0.25, fitZoom));
   const prevPage = () => setCurrentPage((p) => Math.max(p - 1, 1));
   const nextPage = () => setCurrentPage((p) => Math.min(p + 1, numPages));
 
@@ -243,7 +282,7 @@ const PdfViewer: React.FC<ViewerProps> = ({ file }) => {
           +
         </button>
       </div>
-      <div style={styles.canvasContainer}>
+      <div ref={canvasContainerRef} style={styles.canvasContainer}>
         <canvas ref={canvasRef} style={styles.canvas} />
       </div>
     </div>
