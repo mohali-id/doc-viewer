@@ -72,7 +72,9 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
   useEffect(() => {
     try {
@@ -98,6 +100,36 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
     }
   }, []);
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (zoom <= 1) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: el.scrollLeft,
+      scrollTop: el.scrollTop,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    e.preventDefault();
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    el.scrollLeft = dragStartRef.current.scrollLeft - dx;
+    el.scrollTop = dragStartRef.current.scrollTop - dy;
+  };
+
+  const stopDragging = () => {
+    setIsDragging(false);
+  };
+
   if (error) return <div style={styles.error}>{error}</div>;
   if (!url) return <div style={styles.loading}>Loading image...</div>;
 
@@ -118,10 +150,23 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
           1:1
         </button>
       </div>
-      <div style={styles.imageArea} ref={containerRef} onWheel={handleWheel}>
+      <div
+        style={{
+          ...styles.imageArea,
+          cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+          userSelect: isDragging ? 'none' : 'auto',
+        }}
+        ref={containerRef}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={stopDragging}
+        onMouseLeave={stopDragging}
+      >
         <img
           src={url}
           alt={file.name}
+          draggable={false}
           style={{
             ...styles.image,
             transform: `scale(${zoom})`,

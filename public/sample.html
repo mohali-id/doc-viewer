@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style type="text/tailwindcss">
+    @theme {
+      --color-claude-bg: #f2ede3;
+      --color-sidebar-bg: #e8e2d6;
+      --color-claude-text: #1a1915;
+      --color-claude-muted: #6b6860;
+      --color-claude-border: #d4cfc6;
+      --color-claude-hover: #ddd8cc;
+      --color-claude-accent: #c17d3c;
+      --color-bubble-user: #2f2e2b;
+      --color-bubble-ai: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; background: var(--color-claude-bg); color: var(--color-claude-text); }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--color-claude-border); border-radius: 4px; }
+    .sidebar-item:hover { background: var(--color-claude-hover); }
+    .sidebar-item.active { background: var(--color-claude-hover); }
+    .typing-dot { animation: typing 1.2s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+    textarea { resize: none; font-family: inherit; }
+    textarea:focus { outline: none; }
+    .sidebar-overlay { backdrop-filter: blur(2px); }
+    #sidebar { transition: transform 0.25s cubic-bezier(.4,0,.2,1); }
+    .message-fade { animation: fadein 0.3s ease; }
+    @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .prose-content p { margin: 0 0 0.75rem; }
+    .prose-content p:last-child { margin-bottom: 0; }
+    .prose-content code { background: #f0ece4; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; font-family: ui-monospace, monospace; }
+    .prose-content pre { background: #f0ece4; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.85em; }
+    .shine-btn { background: linear-gradient(135deg, #c17d3c, #d4944d); }
+    .input-box { background: #ffffff; border: 1.5px solid var(--color-claude-border); transition: border-color 0.15s; }
+    .input-box:focus-within { border-color: #b0aa9e; }
+  </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+  <!-- Mobile overlay -->
+  <div id="overlay" class="hidden fixed inset-0 bg-black/30 z-20 sidebar-overlay lg:hidden" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="fixed lg:relative z-30 flex flex-col w-72 h-full -translate-x-full lg:translate-x-0 shrink-0" style="background: var(--color-sidebar-bg); border-right: 1px solid var(--color-claude-border);">
+    
+    <!-- Sidebar header -->
+    <div class="flex items-center justify-between px-4 py-4">
+      <div class="flex items-center gap-2">
+        <!-- Claude logo mark -->
+        <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 4C11.163 4 4 11.163 4 20s7.163 16 16 16 16-7.163 16-16S28.837 4 20 4z" fill="#c17d3c" opacity="0.15"/>
+          <path d="M15 13l-3.5 14h3l.8-3.5h5.4l.8 3.5h3L21 13h-6zm-.2 8l1.7-7h3l1.7 7h-6.4z" fill="#c17d3c"/>
+        </svg>
+        <span class="font-semibold text-sm" style="color: var(--color-claude-text);">Claude</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button onclick="toggleSidebar()" class="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="tutup sidebar">
+          <i class="ti ti-x" style="font-size:18px;"></i>
+        </button>
+        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="chat baru" onclick="newChat()">
+          <i class="ti ti-edit" style="font-size:18px;"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- New chat button -->
+    <div class="px-3 mb-3">
+      <button onclick="newChat()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors sidebar-item" style="color: var(--color-claude-text);">
+        <i class="ti ti-plus" style="font-size:17px; color: var(--color-claude-muted);"></i>
+        Chat baru
+      </button>
+    </div>
+
+    <!-- Chat history -->
+    <div class="flex-1 overflow-y-auto px-3 space-y-0.5">
+      <p class="px-3 py-1.5 text-xs font-medium" style="color: var(--color-claude-muted);">Hari ini</p>
+      
+      <button class="sidebar-item active w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Tampilan Claude.ai Chat UI</span>
+      </button>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Cara membuat API REST dengan Python</span>
+      </button>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Analisis data penjualan Q3</span>
+      </button>
+
+      <p class="px-3 pt-3 pb-1.5 text-xs font-medium" style="color: var(--color-claude-muted);">Kemarin</p>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Perbedaan React vs Vue.js</span>
+      </button>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Terjemahkan dokumen ke Inggris</span>
+      </button>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Resep masakan nasi goreng</span>
+      </button>
+
+      <p class="px-3 pt-3 pb-1.5 text-xs font-medium" style="color: var(--color-claude-muted);">Minggu ini</p>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Debugging error TypeScript</span>
+      </button>
+      <button class="sidebar-item w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors" style="color: var(--color-claude-text);">
+        <i class="ti ti-message" style="font-size:16px; color: var(--color-claude-muted); flex-shrink:0;"></i>
+        <span class="truncate">Rencana perjalanan Bali 5 hari</span>
+      </button>
+    </div>
+
+    <!-- Sidebar footer / user -->
+    <div class="p-3 border-t" style="border-color: var(--color-claude-border);">
+      <button class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0" style="background: #7c6fcd;">A</div>
+        <div class="flex-1 min-w-0 text-left">
+          <p class="text-sm font-medium truncate" style="color: var(--color-claude-text);">Anda</p>
+          <p class="text-xs truncate" style="color: var(--color-claude-muted);">Claude Pro</p>
+        </div>
+        <i class="ti ti-dots-vertical" style="font-size:16px; color: var(--color-claude-muted);"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+
+    <!-- Top bar -->
+    <header class="flex items-center justify-between px-4 py-3 shrink-0" style="border-bottom: 1px solid var(--color-claude-border);">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="buka sidebar">
+          <i class="ti ti-menu-2" style="font-size:20px;"></i>
+        </button>
+        <!-- Model selector -->
+        <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors text-sm font-medium" style="color: var(--color-claude-text);">
+          Claude Sonnet 4
+          <i class="ti ti-chevron-down" style="font-size:14px; color: var(--color-claude-muted);"></i>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--color-claude-hover)]" style="color: var(--color-claude-muted);">
+          <i class="ti ti-share" style="font-size:16px;"></i>
+          <span class="hidden md:inline">Bagikan</span>
+        </button>
+        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="pengaturan">
+          <i class="ti ti-settings" style="font-size:18px;"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Messages area -->
+    <div id="messages" class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+
+      <!-- Welcome state (shown when no messages) -->
+      <div id="welcome" class="flex flex-col items-center justify-center h-full min-h-64 text-center space-y-6">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center" style="background: #f0ece2; border: 1.5px solid var(--color-claude-border);">
+          <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+            <path d="M15 13l-3.5 14h3l.8-3.5h5.4l.8 3.5h3L21 13h-6zm-.2 8l1.7-7h3l1.7 7h-6.4z" fill="#c17d3c"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-semibold mb-1" style="color: var(--color-claude-text);">Hai, ada yang bisa dibantu?</h1>
+          <p class="text-sm" style="color: var(--color-claude-muted);">Tanyakan apa saja — saya siap membantu.</p>
+        </div>
+        <!-- Quick suggestion chips -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg mt-2">
+          <button onclick="usePrompt('Bantu saya menulis email profesional')" class="sidebar-item flex items-start gap-3 p-3.5 rounded-xl text-left border transition-colors" style="border-color: var(--color-claude-border); background: #faf8f4;">
+            <i class="ti ti-mail" style="font-size:18px; color: var(--color-claude-accent); margin-top:1px; flex-shrink:0;"></i>
+            <div>
+              <p class="text-sm font-medium" style="color: var(--color-claude-text);">Tulis email</p>
+              <p class="text-xs mt-0.5" style="color: var(--color-claude-muted);">Email profesional & personal</p>
+            </div>
+          </button>
+          <button onclick="usePrompt('Jelaskan konsep machine learning dengan sederhana')" class="sidebar-item flex items-start gap-3 p-3.5 rounded-xl text-left border transition-colors" style="border-color: var(--color-claude-border); background: #faf8f4;">
+            <i class="ti ti-brain" style="font-size:18px; color: var(--color-claude-accent); margin-top:1px; flex-shrink:0;"></i>
+            <div>
+              <p class="text-sm font-medium" style="color: var(--color-claude-text);">Jelaskan konsep</p>
+              <p class="text-xs mt-0.5" style="color: var(--color-claude-muted);">Buat kompleks jadi sederhana</p>
+            </div>
+          </button>
+          <button onclick="usePrompt('Bantu saya debug kode JavaScript ini')" class="sidebar-item flex items-start gap-3 p-3.5 rounded-xl text-left border transition-colors" style="border-color: var(--color-claude-border); background: #faf8f4;">
+            <i class="ti ti-code" style="font-size:18px; color: var(--color-claude-accent); margin-top:1px; flex-shrink:0;"></i>
+            <div>
+              <p class="text-sm font-medium" style="color: var(--color-claude-text);">Debug kode</p>
+              <p class="text-xs mt-0.5" style="color: var(--color-claude-muted);">Temukan & perbaiki bug</p>
+            </div>
+          </button>
+          <button onclick="usePrompt('Buatkan rencana perjalanan ke Bali selama 3 hari')" class="sidebar-item flex items-start gap-3 p-3.5 rounded-xl text-left border transition-colors" style="border-color: var(--color-claude-border); background: #faf8f4;">
+            <i class="ti ti-map-pin" style="font-size:18px; color: var(--color-claude-accent); margin-top:1px; flex-shrink:0;"></i>
+            <div>
+              <p class="text-sm font-medium" style="color: var(--color-claude-text);">Rencana perjalanan</p>
+              <p class="text-xs mt-0.5" style="color: var(--color-claude-muted);">Itinerary lengkap & detail</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Conversation messages will be injected here -->
+      <div id="chat-messages" class="space-y-6 hidden"></div>
+    </div>
+
+    <!-- Input area -->
+    <div class="shrink-0 px-4 pb-4 pt-2">
+      <div class="max-w-3xl mx-auto">
+        <div class="input-box rounded-2xl p-3">
+          <!-- Textarea -->
+          <textarea
+            id="input"
+            rows="1"
+            placeholder="Ketik pesan Anda..."
+            class="w-full bg-transparent text-sm leading-relaxed max-h-48 overflow-y-auto"
+            style="color: var(--color-claude-text); min-height: 24px;"
+            onkeydown="handleKey(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+
+          <!-- Bottom toolbar -->
+          <div class="flex items-center justify-between mt-2 pt-2" style="border-top: 1px solid var(--color-claude-border);">
+            <div class="flex items-center gap-1">
+              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="lampirkan file">
+                <i class="ti ti-paperclip" style="font-size:17px;"></i>
+              </button>
+              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="pencarian web">
+                <i class="ti ti-world-search" style="font-size:17px;"></i>
+              </button>
+              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="riset mendalam">
+                <i class="ti ti-microscope" style="font-size:17px;"></i>
+              </button>
+            </div>
+            <button id="send-btn" onclick="sendMessage()" class="w-8 h-8 flex items-center justify-center rounded-lg transition-all disabled:opacity-40" style="background: var(--color-claude-accent); color: white;" aria-label="kirim" disabled>
+              <i class="ti ti-arrow-up" style="font-size:16px; font-weight:600;"></i>
+            </button>
+          </div>
+        </div>
+        <p class="text-center text-xs mt-2" style="color: var(--color-claude-muted);">Claude dapat membuat kesalahan. Periksa informasi penting.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const messagesEl = document.getElementById('chat-messages');
+    const welcomeEl = document.getElementById('welcome');
+    let isTyping = false;
+
+    input.addEventListener('input', () => {
+      sendBtn.disabled = input.value.trim() === '';
+    });
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 192) + 'px';
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!sendBtn.disabled && !isTyping) sendMessage();
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('overlay');
+      const isOpen = !sidebar.classList.contains('-translate-x-full');
+      if (isOpen) {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      } else {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      }
+    }
+
+    function usePrompt(text) {
+      input.value = text;
+      autoResize(input);
+      sendBtn.disabled = false;
+      input.focus();
+    }
+
+    function newChat() {
+      messagesEl.innerHTML = '';
+      messagesEl.classList.add('hidden');
+      welcomeEl.classList.remove('hidden');
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+    }
+
+    function addMessage(role, content) {
+      welcomeEl.classList.add('hidden');
+      messagesEl.classList.remove('hidden');
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message-fade flex gap-3 ' + (role === 'user' ? 'justify-end' : 'justify-start');
+
+      if (role === 'assistant') {
+        wrapper.innerHTML = `
+          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5" style="background: #f0ece2; border: 1px solid var(--color-claude-border);">
+            <svg width="16" height="16" viewBox="0 0 40 40" fill="none"><path d="M15 13l-3.5 14h3l.8-3.5h5.4l.8 3.5h3L21 13h-6zm-.2 8l1.7-7h3l1.7 7h-6.4z" fill="#c17d3c"/></svg>
+          </div>
+          <div class="flex-1 max-w-2xl">
+            <div class="prose-content text-sm leading-relaxed" style="color: var(--color-claude-text);">${content}</div>
+            <div class="flex items-center gap-1 mt-2">
+              <button class="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="salin">
+                <i class="ti ti-copy" style="font-size:14px;"></i>
+              </button>
+              <button class="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="bagus">
+                <i class="ti ti-thumb-up" style="font-size:14px;"></i>
+              </button>
+              <button class="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="kurang bagus">
+                <i class="ti ti-thumb-down" style="font-size:14px;"></i>
+              </button>
+              <button class="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-claude-hover)] transition-colors" style="color: var(--color-claude-muted);" aria-label="ulangi">
+                <i class="ti ti-refresh" style="font-size:14px;"></i>
+              </button>
+            </div>
+          </div>`;
+      } else {
+        wrapper.innerHTML = `
+          <div class="max-w-xs sm:max-w-md lg:max-w-xl px-4 py-3 rounded-2xl text-sm leading-relaxed" style="background: var(--color-bubble-user); color: #f5f2ec;">${content}</div>`;
+      }
+
+      messagesEl.appendChild(wrapper);
+      messagesEl.parentElement.scrollTop = messagesEl.parentElement.scrollHeight;
+      return wrapper;
+    }
+
+    function addTypingIndicator() {
+      welcomeEl.classList.add('hidden');
+      messagesEl.classList.remove('hidden');
+
+      const wrapper = document.createElement('div');
+      wrapper.id = 'typing-indicator';
+      wrapper.className = 'message-fade flex gap-3 items-start';
+      wrapper.innerHTML = `
+        <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5" style="background: #f0ece2; border: 1px solid var(--color-claude-border);">
+          <svg width="16" height="16" viewBox="0 0 40 40" fill="none"><path d="M15 13l-3.5 14h3l.8-3.5h5.4l.8 3.5h3L21 13h-6zm-.2 8l1.7-7h3l1.7 7h-6.4z" fill="#c17d3c"/></svg>
+        </div>
+        <div class="flex items-center gap-1.5 px-4 py-3 rounded-2xl" style="background: #ffffff; border: 1px solid var(--color-claude-border);">
+          <span class="typing-dot w-1.5 h-1.5 rounded-full block" style="background: var(--color-claude-muted);"></span>
+          <span class="typing-dot w-1.5 h-1.5 rounded-full block" style="background: var(--color-claude-muted);"></span>
+          <span class="typing-dot w-1.5 h-1.5 rounded-full block" style="background: var(--color-claude-muted);"></span>
+        </div>`;
+      messagesEl.appendChild(wrapper);
+      messagesEl.parentElement.scrollTop = messagesEl.parentElement.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    const responses = [
+      `<p>Tentu! Saya senang bisa membantu. Berikut yang perlu Anda ketahui tentang topik tersebut.</p><p>Pertama, penting untuk memahami konteks dasarnya. Saya akan menjelaskan langkah demi langkah agar mudah dipahami.</p>`,
+      `<p>Baik, saya akan bantu menjelaskan ini dengan cara yang mudah dipahami.</p><p>Singkatnya, konsep ini bekerja dengan cara menggabungkan beberapa elemen kunci: <code>struktur data</code>, logika pemrosesan, dan output yang terorganisir. Apakah Anda ingin saya jelaskan lebih detail salah satu bagiannya?</p>`,
+      `<p>Pertanyaan yang bagus! Ini adalah hal yang sering membingungkan banyak orang.</p><p>Jawabannya bergantung pada konteks penggunaan Anda. Secara umum, ada dua pendekatan utama yang bisa Anda pertimbangkan, masing-masing dengan kelebihan dan kekurangannya sendiri.</p><p>Apakah ada aspek spesifik yang ingin Anda dalami lebih lanjut?</p>`,
+      `<p>Saya mengerti maksud Anda. Mari kita urai ini bersama-sama.</p><p>Hal pertama yang perlu diperhatikan adalah bahwa setiap situasi memiliki nuansi tersendiri. Berdasarkan informasi yang Anda berikan, saya sarankan untuk memulai dengan pendekatan yang lebih sederhana terlebih dahulu, lalu tingkatkan kompleksitasnya secara bertahap.</p>`,
+    ];
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text || isTyping) return;
+
+      isTyping = true;
+      sendBtn.disabled = true;
+      input.value = '';
+      input.style.height = 'auto';
+
+      addMessage('user', text);
+      addTypingIndicator();
+
+      await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+
+      removeTypingIndicator();
+      const reply = responses[Math.floor(Math.random() * responses.length)];
+      addMessage('assistant', reply);
+
+      isTyping = false;
+      sendBtn.disabled = input.value.trim() === '';
+    }
+  </script>
+</body>
+</html>

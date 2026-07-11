@@ -11,11 +11,9 @@ export interface FileItem {
 export type FileType =
   | 'pdf'
   | 'docx'
-  | 'doc'
   | 'xlsx'
   | 'csv'
-  | 'pptx'
-  | 'ppt'
+  | 'html'
   | 'image'
   | 'video'
   | 'code'

@@ -6,11 +6,10 @@ import { DownloadOnlyCard } from './viewers';
 const PdfViewer = React.lazy(() => import('./viewers/PdfViewer'));
 const DocxViewer = React.lazy(() => import('./viewers/DocxViewer'));
 const XlsxViewer = React.lazy(() => import('./viewers/XlsxViewer'));
-const PptxViewer = React.lazy(() => import('./viewers/PptxViewer'));
 const ImageViewer = React.lazy(() => import('./viewers/ImageViewer'));
 const CodeViewer = React.lazy(() => import('./viewers/CodeViewer'));
 const VideoViewer = React.lazy(() => import('./viewers/VideoViewer'));
-const OldFormatViewer = React.lazy(() => import('./viewers/OldFormatViewer'));
+const HtmlViewer = React.lazy(() => import('./viewers/HtmlViewer'));
 
 interface FileViewerProps {
   file: FileItem;
@@ -26,17 +25,14 @@ const FileViewer: React.FC<FileViewerProps> = ({ file }) => {
       case 'xlsx':
       case 'csv':
         return <XlsxViewer file={file} />;
-      case 'pptx':
-        return <PptxViewer file={file} />;
       case 'image':
         return <ImageViewer file={file} />;
       case 'code':
         return <CodeViewer file={file} />;
       case 'video':
         return <VideoViewer file={file} />;
-      case 'doc':
-      case 'ppt':
-        return <OldFormatViewer file={file} />;
+      case 'html':
+        return <HtmlViewer file={file} />;
       default:
         return <DownloadOnlyCard file={file} />;
     }

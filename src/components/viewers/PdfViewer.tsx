@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { ViewerProps } from '../../types';
 
@@ -84,47 +84,128 @@ const PdfViewer: React.FC<ViewerProps> = ({ file }) => {
   const [error, setError] = useState<string | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<any>(null);
+
+  const disposePdfDoc = async (doc: pdfjsLib.PDFDocumentProxy | null) => {
+    if (!doc) return;
+    const disposable = doc as any;
+    if (typeof disposable.destroy === 'function') {
+      await disposable.destroy();
+      return;
+    }
+    if (typeof disposable.cleanup === 'function') {
+      disposable.cleanup();
+    }
+  };
 
   useEffect(() => {
+    let disposed = false;
+
     const loadPdf = async () => {
       try {
         setLoading(true);
         setError(null);
+        if (renderTaskRef.current) {
+          renderTaskRef.current.cancel();
+          renderTaskRef.current = null;
+        }
+        if (pdfDocRef.current) {
+          await disposePdfDoc(pdfDocRef.current);
+          pdfDocRef.current = null;
+          setPdfDoc(null);
+        }
         // Copy the ArrayBuffer to prevent "detached ArrayBuffer" error
         // pdfjs-dist transfers ownership of the buffer internally
         const dataCopy = file.data.slice(0);
-        const doc = await pdfjsLib.getDocument({ data: dataCopy }).promise;
+        const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
+        const doc = await loadingTask.promise;
+        if (disposed) {
+          await disposePdfDoc(doc);
+          return;
+        }
+        pdfDocRef.current = doc;
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         setCurrentPage(1);
       } catch (err) {
+        if (disposed) return;
         setError(`Failed to load PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
-        setLoading(false);
+        if (!disposed) setLoading(false);
       }
     };
+
     loadPdf();
+
+    return () => {
+      disposed = true;
+    };
   }, [file.data]);
 
-  const renderPage = useCallback(async () => {
+  useEffect(() => {
     if (!pdfDoc || !canvasRef.current) return;
-    try {
-      const page = await pdfDoc.getPage(currentPage);
-      const viewport = page.getViewport({ scale: zoom });
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-      if (!context) return;
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      await page.render({ canvasContext: context, viewport, canvas } as any).promise;
-    } catch (err) {
-      setError(`Failed to render page: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
+
+    let cancelled = false;
+
+    const renderPage = async () => {
+      try {
+        if (renderTaskRef.current) {
+          renderTaskRef.current.cancel();
+          try {
+            await renderTaskRef.current.promise;
+          } catch {
+            // ignore cancel errors
+          }
+          renderTaskRef.current = null;
+        }
+
+        const page = await pdfDoc.getPage(currentPage);
+        if (cancelled || !canvasRef.current) return;
+
+        const viewport = page.getViewport({ scale: zoom });
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderTask = page.render({ canvasContext: context, viewport, canvas } as any);
+        renderTaskRef.current = renderTask;
+
+        await renderTask.promise;
+        if (renderTaskRef.current === renderTask) {
+          renderTaskRef.current = null;
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof Error && err.name === 'RenderingCancelledException') return;
+        setError(`Failed to render page: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    };
+
+    renderPage();
+
+    return () => {
+      cancelled = true;
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+      }
+    };
   }, [pdfDoc, currentPage, zoom]);
 
   useEffect(() => {
-    renderPage();
-  }, [renderPage]);
+    return () => {
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+      }
+      if (pdfDocRef.current) {
+        void disposePdfDoc(pdfDocRef.current);
+        pdfDocRef.current = null;
+      }
+    };
+  }, []);
 
   const zoomIn = () => setZoom((z) => Math.min(z + 0.25, 3.0));
   const zoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.5));

@@ -3,12 +3,8 @@ import { FileType } from '../types';
 const EXT_MAP: Record<string, FileType> = {
   pdf: 'pdf',
   docx: 'docx',
-  doc: 'doc',
   xlsx: 'xlsx',
-  xls: 'xlsx',
   csv: 'csv',
-  pptx: 'pptx',
-  ppt: 'ppt',
   // Video
   mp4: 'video',
   webm: 'video',
@@ -33,7 +29,8 @@ const EXT_MAP: Record<string, FileType> = {
   tsx: 'code',
   jsx: 'code',
   json: 'code',
-  html: 'code',
+  html: 'html',
+  htm: 'html',
   css: 'code',
   scss: 'code',
   less: 'code',
@@ -67,11 +64,7 @@ const MIME_MAP: Record<string, FileType> = {
   'application/pdf': 'pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-  'application/vnd.ms-excel': 'xlsx',
   'text/csv': 'csv',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
-  'application/msword': 'doc',
-  'application/vnd.ms-powerpoint': 'ppt',
   // Video
   'video/mp4': 'video',
   'video/webm': 'video',
@@ -86,7 +79,8 @@ const MIME_MAP: Record<string, FileType> = {
   'image/webp': 'image',
   'image/svg+xml': 'image',
   'text/plain': 'code',
-  'text/html': 'code',
+  'text/html': 'html',
+  'application/xhtml+xml': 'html',
   'text/css': 'code',
   'application/javascript': 'code',
   'application/json': 'code',
@@ -98,11 +92,9 @@ const MIME_MAP: Record<string, FileType> = {
 // Magic number signatures
 const MAGIC_NUMBERS: { bytes: number[]; offset?: number; type: FileType }[] = [
   { bytes: [0x25, 0x50, 0x44, 0x46], type: 'pdf' }, // %PDF
-  { bytes: [0x50, 0x4B, 0x03, 0x04], type: 'docx' }, // PK (ZIP-based, could be docx/xlsx/pptx)
   { bytes: [0x89, 0x50, 0x4E, 0x47], type: 'image' }, // PNG
   { bytes: [0xFF, 0xD8, 0xFF], type: 'image' }, // JPEG
   { bytes: [0x47, 0x49, 0x46, 0x38], type: 'image' }, // GIF
-  { bytes: [0xD0, 0xCF, 0x11, 0xE0], type: 'doc' }, // OLE2 (doc/ppt/xls) - will be refined by extension
   { bytes: [0x00, 0x00, 0x00, 0x1C, 0x66, 0x74, 0x79, 0x70], type: 'video' }, // MP4 ftyp
   { bytes: [0x1A, 0x45, 0xDF, 0xA3], type: 'video' }, // MKV/WebM
 ];
