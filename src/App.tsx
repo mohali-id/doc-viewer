@@ -130,14 +130,6 @@ const App: React.FC = () => {
         ☰
       </button>
 
-      <button
-        className="theme-toggle"
-        onClick={() => setDarkMode(!darkMode)}
-        title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        {darkMode ? '☀️' : '🌙'}
-      </button>
-
       <div className={`sidebar-wrapper ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           files={files}
@@ -148,7 +140,13 @@ const App: React.FC = () => {
       </div>
 
       <main className="main-content">
-        <Toolbar file={activeFile} onClose={handleClose} onDownload={handleDownload} />
+        <Toolbar
+          file={activeFile}
+          onClose={handleClose}
+          onDownload={handleDownload}
+          darkMode={darkMode}
+          onToggleTheme={() => setDarkMode(!darkMode)}
+        />
 
         <div className="viewer-area">
           {loading && <LoadingIndicator message="Fetching file..." />}

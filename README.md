@@ -7,10 +7,13 @@ Aplikasi web static untuk membuka dan melihat berbagai jenis dokumen langsung di
 | Kategori | Ekstensi | Library |
 |----------|----------|---------|
 | PDF | `.pdf` | pdfjs-dist |
-| Word | `.docx` | mammoth.js |
-| Excel | `.xlsx`, `.csv` | SheetJS, PapaParse |
-| PowerPoint | `.pptx` | JSZip (text extraction) |
+| Word (modern) | `.docx` | mammoth.js |
+| Word (legacy) | `.doc` | Legacy extractor + fallback download |
+| Excel | `.xlsx`, `.xls`, `.csv` | SheetJS, PapaParse |
+| PowerPoint (modern) | `.pptx` | JSZip (text + image + basic layout parser) |
+| PowerPoint (legacy) | `.ppt` | Legacy extractor + fallback download |
 | Gambar | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` | Native `<img>` |
+| Video | `.mp4`, `.webm`, `.ogg`, `.ogv`, `.mov`, `.avi`, `.mkv` | Native `<video>` |
 | Kode/Teks | `.js`, `.ts`, `.py`, `.php`, `.json`, `.html`, `.css`, `.md`, dll | highlight.js |
 
 File yang tidak didukung akan menampilkan info card dengan tombol download.
