@@ -28,6 +28,29 @@ const App: React.FC = () => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  const resolveFileParam = useCallback((value: string) => {
+    const raw = value.trim();
+    if (!raw) return raw;
+
+    if (/^(https?:\/\/|blob:)/i.test(raw)) {
+      return raw;
+    }
+
+    const normalized = raw.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+
+    try {
+      const decoded = atob(padded).trim();
+      if (/^(https?:\/\/|blob:)/i.test(decoded)) {
+        return decoded;
+      }
+    } catch {
+      // Not a valid base64 value, use raw value as-is.
+    }
+
+    return raw;
+  }, []);
+
   const fetchFileFromUrl = useCallback(async (url: string) => {
     setLoading(true);
     setError(null);
@@ -79,11 +102,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const url = params.get('file');
-    if (url) {
-      fetchFileFromUrl(url);
+    const fileParam = params.get('file');
+    if (fileParam) {
+      const resolvedUrl = resolveFileParam(fileParam);
+      fetchFileFromUrl(resolvedUrl);
     }
-  }, [fetchFileFromUrl]);
+  }, [fetchFileFromUrl, resolveFileParam]);
 
   const handleFilesAdded = (newFiles: FileItem[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
