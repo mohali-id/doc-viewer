@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileItem } from './types';
+import { FileItem, FileType } from './types';
 import { detectFileType, getFileNameFromUrl, generateId } from './utils/fileUtils';
 import FileViewer from './components/FileViewer';
 import UploadArea from './components/UploadArea';
@@ -7,12 +7,16 @@ import LoadingIndicator from './components/LoadingIndicator';
 import ErrorDisplay from './components/ErrorDisplay';
 import './App.css';
 
+const PASSTHROUGH_TYPES: FileType[] = ['image', 'video', 'audio'];
+const TYPE_HINTS: FileType[] = ['pdf', 'docx', 'xlsx', 'csv', 'html', 'image', 'video', 'audio', 'code'];
+
 const App: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [typeHint, setTypeHint] = useState<FileType | undefined>(undefined);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
@@ -51,16 +55,31 @@ const App: React.FC = () => {
     return raw;
   }, []);
 
-  const fetchFileFromUrl = useCallback(async (url: string) => {
+  const fetchFileFromUrl = useCallback(async (url: string, typeHint?: FileType) => {
     setLoading(true);
     setError(null);
     setFileUrl(url);
 
     try {
-      if (url.startsWith('blob:')) {
-        throw new Error(
-          'URL blob tidak bisa dibuka dari query parameter. Blob URL hanya valid di tab/sesi yang membuatnya. Gunakan URL http/https publik atau upload file langsung.'
-        );
+      const name = getFileNameFromUrl(url);
+      const guessedType = typeHint ?? detectFileType(name);
+
+      // Image/video/audio: hand the URL straight to the media element.
+      // No download, no CORS requirement, and the browser can stream/seek.
+      if (PASSTHROUGH_TYPES.includes(guessedType)) {
+        const fileItem: FileItem = {
+          id: generateId(),
+          name,
+          size: 0,
+          type: '',
+          data: new ArrayBuffer(0),
+          fileType: guessedType,
+          url,
+          passthrough: true,
+        };
+        setFiles([fileItem]);
+        setActiveFileId(fileItem.id);
+        return;
       }
 
       const response = await fetch(url);
@@ -69,9 +88,8 @@ const App: React.FC = () => {
       }
 
       const data = await response.arrayBuffer();
-      const name = getFileNameFromUrl(url);
       const contentType = response.headers.get('content-type') || '';
-      const fileType = detectFileType(name, contentType, data);
+      const fileType = typeHint ?? detectFileType(name, contentType, data);
 
       const fileItem: FileItem = {
         id: generateId(),
@@ -88,9 +106,11 @@ const App: React.FC = () => {
     } catch (err: unknown) {
       const message =
         err instanceof TypeError
-          ? url.startsWith('http://') || url.startsWith('https://')
-            ? 'Gagal mengambil file. Kemungkinan CORS diblokir atau jaringan bermasalah. Pastikan server file mengizinkan Access-Control-Allow-Origin.'
-            : 'Gagal mengambil file dari URL yang diberikan.'
+          ? url.startsWith('blob:')
+            ? 'Gagal membaca blob URL. Blob URL hanya valid selama tab yang membuatnya masih terbuka dan dari origin yang sama. Untuk gambar/video/audio, tambahkan parameter &type=image|video|audio agar diputar langsung.'
+            : url.startsWith('http://') || url.startsWith('https://')
+              ? 'Gagal mengambil file. Kemungkinan CORS diblokir atau jaringan bermasalah. Pastikan server file mengizinkan Access-Control-Allow-Origin. Untuk gambar/video/audio tanpa ekstensi, tambahkan parameter &type=image|video|audio.'
+              : 'Gagal mengambil file dari URL yang diberikan.'
           : err instanceof Error
             ? err.message
             : 'An unknown error occurred';
@@ -105,7 +125,10 @@ const App: React.FC = () => {
     const fileParam = params.get('file');
     if (fileParam) {
       const resolvedUrl = resolveFileParam(fileParam);
-      fetchFileFromUrl(resolvedUrl);
+      const typeParam = params.get('type')?.trim().toLowerCase() as FileType | undefined;
+      const typeHint = typeParam && TYPE_HINTS.includes(typeParam) ? typeParam : undefined;
+      setTypeHint(typeHint);
+      fetchFileFromUrl(resolvedUrl, typeHint);
     }
   }, [fetchFileFromUrl, resolveFileParam]);
 
@@ -119,7 +142,7 @@ const App: React.FC = () => {
 
   const handleRetry = () => {
     if (fileUrl) {
-      fetchFileFromUrl(fileUrl);
+      fetchFileFromUrl(fileUrl, typeHint);
     }
   };
 

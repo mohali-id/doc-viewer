@@ -6,6 +6,8 @@ export interface FileItem {
   data: ArrayBuffer;
   fileType: FileType;
   url?: string;
+  /** Media rendered straight from `url` without downloading its bytes. */
+  passthrough?: boolean;
 }
 
 export type FileType =
@@ -16,6 +18,7 @@ export type FileType =
   | 'html'
   | 'image'
   | 'video'
+  | 'audio'
   | 'code'
   | 'unknown';
 

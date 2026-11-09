@@ -1,5 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { ViewerProps } from '../../types';
+import { getFileExtension } from '../../utils/fileUtils';
+import { useMediaSrc } from '../../utils/useMediaSrc';
+
+const MIME_MAP: Record<string, string> = {
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  ogv: 'video/ogg',
+  mov: 'video/quicktime',
+  avi: 'video/x-msvideo',
+  mkv: 'video/x-matroska',
+};
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -39,38 +50,16 @@ const styles: Record<string, React.CSSProperties> = {
 };
 
 const VideoViewer: React.FC<ViewerProps> = ({ file }) => {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const mimeMap: Record<string, string> = {
-        mp4: 'video/mp4',
-        webm: 'video/webm',
-        ogg: 'video/ogg',
-        ogv: 'video/ogg',
-        mov: 'video/quicktime',
-        avi: 'video/x-msvideo',
-        mkv: 'video/x-matroska',
-      };
-      const mimeType = mimeMap[ext] || 'video/mp4';
-      const blob = new Blob([file.data], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      setBlobUrl(url);
-
-      return () => {
-        URL.revokeObjectURL(url);
-      };
-    } catch (err) {
-      setError(`Gagal memuat video: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }, [file.data, file.name]);
+  const mimeType = MIME_MAP[getFileExtension(file.name)] || file.type || 'video/mp4';
+  const blobUrl = useMediaSrc(file, mimeType);
 
   const handleError = () => {
     setError(
-      'Browser tidak dapat memutar format video ini. Coba download dan putar dengan media player.'
+      file.passthrough
+        ? 'Video tidak dapat diputar. URL mungkin tidak bisa diakses atau formatnya tidak didukung browser.'
+        : 'Browser tidak dapat memutar format video ini. Coba download dan putar dengan media player.'
     );
   };
 
@@ -96,6 +85,7 @@ const VideoViewer: React.FC<ViewerProps> = ({ file }) => {
         src={blobUrl}
         controls
         controlsList="nodownload"
+        playsInline
         style={styles.video}
         onError={handleError}
       >

@@ -10,7 +10,8 @@ Aplikasi web static untuk membuka dan melihat berbagai jenis dokumen langsung di
 | Word (modern) | `.docx` | mammoth.js |
 | Excel | `.xlsx`, `.csv` | SheetJS, PapaParse |
 | Gambar | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` | Native `<img>` |
-| Video | `.mp4`, `.webm`, `.ogg`, `.ogv`, `.mov`, `.avi`, `.mkv` | Native `<video>` |
+| Video | `.mp4`, `.webm`, `.ogv`, `.mov`, `.avi`, `.mkv` | Native `<video>` |
+| Audio | `.mp3`, `.wav`, `.ogg`, `.oga`, `.opus`, `.m4a`, `.aac`, `.flac`, `.weba` | Native `<audio>` |
 | Kode/Teks | `.js`, `.ts`, `.py`, `.php`, `.json`, `.html`, `.css`, `.md`, dll | highlight.js |
 
 File yang tidak didukung akan menampilkan info card dengan tombol download.
@@ -46,6 +47,15 @@ http://localhost:3000/index.html?file=https://example.com/laporan.docx
 
 Aplikasi akan otomatis fetch dan menampilkan dokumen tersebut.
 
+**Gambar, video, dan audio** (URL `http(s)://` maupun `blob:`) tidak di-download dulu: URL langsung dipasang ke `<img>`/`<video>`/`<audio>`, sehingga bisa streaming/seek dan tidak butuh CORS. Tipe dideteksi dari ekstensi; untuk URL tanpa ekstensi (misalnya blob), tambahkan `&type=image|video|audio`:
+
+```
+http://localhost:3000/?file=https://example.com/podcast.mp3
+http://localhost:3000/?file=blob:http://localhost:3000/1234-abcd&type=video
+```
+
+Blob URL hanya bisa dibuka selama tab yang membuatnya masih terbuka dan dari origin yang sama.
+
 ### Mode Upload Manual
 
 Buka tanpa parameter `?file=`, lalu:
@@ -64,7 +74,7 @@ Buka tanpa parameter `?file=`, lalu:
 
 ## Catatan CORS
 
-Jika menggunakan mode `?file=` dengan URL dari domain lain, server penyedia file harus mengizinkan CORS dengan header:
+Jika menggunakan mode `?file=` dengan URL dari domain lain (selain gambar/video/audio yang diputar langsung), server penyedia file harus mengizinkan CORS dengan header:
 
 ```
 Access-Control-Allow-Origin: *

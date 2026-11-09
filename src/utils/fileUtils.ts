@@ -8,11 +8,20 @@ const EXT_MAP: Record<string, FileType> = {
   // Video
   mp4: 'video',
   webm: 'video',
-  ogg: 'video',
   ogv: 'video',
   mov: 'video',
   avi: 'video',
   mkv: 'video',
+  // Audio
+  mp3: 'audio',
+  wav: 'audio',
+  ogg: 'audio',
+  oga: 'audio',
+  opus: 'audio',
+  m4a: 'audio',
+  aac: 'audio',
+  flac: 'audio',
+  weba: 'audio',
   // Image
   png: 'image',
   jpg: 'image',
@@ -72,6 +81,20 @@ const MIME_MAP: Record<string, FileType> = {
   'video/quicktime': 'video',
   'video/x-msvideo': 'video',
   'video/x-matroska': 'video',
+  // Audio
+  'audio/mpeg': 'audio',
+  'audio/mp3': 'audio',
+  'audio/wav': 'audio',
+  'audio/x-wav': 'audio',
+  'audio/wave': 'audio',
+  'audio/ogg': 'audio',
+  'audio/opus': 'audio',
+  'audio/mp4': 'audio',
+  'audio/x-m4a': 'audio',
+  'audio/aac': 'audio',
+  'audio/flac': 'audio',
+  'audio/x-flac': 'audio',
+  'audio/webm': 'audio',
   // Image
   'image/png': 'image',
   'image/jpeg': 'image',
@@ -97,6 +120,11 @@ const MAGIC_NUMBERS: { bytes: number[]; offset?: number; type: FileType }[] = [
   { bytes: [0x47, 0x49, 0x46, 0x38], type: 'image' }, // GIF
   { bytes: [0x00, 0x00, 0x00, 0x1C, 0x66, 0x74, 0x79, 0x70], type: 'video' }, // MP4 ftyp
   { bytes: [0x1A, 0x45, 0xDF, 0xA3], type: 'video' }, // MKV/WebM
+  { bytes: [0x49, 0x44, 0x33], type: 'audio' }, // MP3 with ID3 tag
+  { bytes: [0xFF, 0xFB], type: 'audio' }, // MP3 frame (MPEG-1 Layer III)
+  { bytes: [0x66, 0x4C, 0x61, 0x43], type: 'audio' }, // FLAC (fLaC)
+  { bytes: [0x57, 0x41, 0x56, 0x45], offset: 8, type: 'audio' }, // WAV (RIFF....WAVE)
+  { bytes: [0x4F, 0x67, 0x67, 0x53], type: 'audio' }, // Ogg container (OggS)
 ];
 
 export function getFileExtension(filename: string): string {
@@ -208,7 +236,7 @@ export function formatFileSize(bytes: number): string {
 
 export function getFileNameFromUrl(url: string): string {
   try {
-    const urlObj = new URL(url);
+    const urlObj = new URL(url, window.location.href);
     const path = urlObj.pathname;
     const segments = path.split('/').filter(Boolean);
     if (segments.length > 0) {

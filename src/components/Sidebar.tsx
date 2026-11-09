@@ -19,6 +19,7 @@ const fileTypeIcons: Record<string, string> = {
   ppt: '📽️',
   image: '🖼️',
   video: '🎬',
+  audio: '🎵',
   code: '💻',
   unknown: '📁',
 };

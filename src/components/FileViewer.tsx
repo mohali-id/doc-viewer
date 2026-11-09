@@ -9,6 +9,7 @@ const XlsxViewer = React.lazy(() => import('./viewers/XlsxViewer'));
 const ImageViewer = React.lazy(() => import('./viewers/ImageViewer'));
 const CodeViewer = React.lazy(() => import('./viewers/CodeViewer'));
 const VideoViewer = React.lazy(() => import('./viewers/VideoViewer'));
+const AudioViewer = React.lazy(() => import('./viewers/AudioViewer'));
 const HtmlViewer = React.lazy(() => import('./viewers/HtmlViewer'));
 
 interface FileViewerProps {
@@ -31,6 +32,8 @@ const FileViewer: React.FC<FileViewerProps> = ({ file }) => {
         return <CodeViewer file={file} />;
       case 'video':
         return <VideoViewer file={file} />;
+      case 'audio':
+        return <AudioViewer file={file} />;
       case 'html':
         return <HtmlViewer file={file} />;
       default:
@@ -39,7 +42,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ file }) => {
   };
 
   return (
-    <Suspense fallback={<LoadingIndicator message="Loading viewer..." />}>
+    <Suspense key={file.id} fallback={<LoadingIndicator message="Loading viewer..." />}>
       {renderViewer()}
     </Suspense>
   );

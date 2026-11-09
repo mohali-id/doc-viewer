@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ViewerProps } from '../../types';
+import { useMediaSrc } from '../../utils/useMediaSrc';
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -69,7 +70,6 @@ const styles: Record<string, React.CSSProperties> = {
 };
 
 const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
-  const [url, setUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1.0);
   const [fitZoom, setFitZoom] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
@@ -78,16 +78,7 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
   const imageRef = useRef<HTMLImageElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
-  useEffect(() => {
-    try {
-      const blob = new Blob([file.data], { type: file.type || 'image/png' });
-      const objectUrl = URL.createObjectURL(blob);
-      setUrl(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
-    } catch (err) {
-      setError(`Failed to load image: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }, [file.data, file.type]);
+  const url = useMediaSrc(file, file.type || 'image/png');
 
   const zoomIn = () => setZoom((z) => Math.min(z + 0.25, 5.0));
   const zoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.25));
@@ -202,6 +193,13 @@ const ImageViewer: React.FC<ViewerProps> = ({ file }) => {
           alt={file.name}
           draggable={false}
           onLoad={applyAutoFit}
+          onError={() =>
+            setError(
+              file.passthrough
+                ? 'Gambar tidak dapat dimuat. URL mungkin tidak bisa diakses atau formatnya tidak didukung.'
+                : 'Gagal memuat gambar.'
+            )
+          }
           style={{
             ...styles.image,
             transform: `scale(${zoom})`,
