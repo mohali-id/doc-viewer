@@ -14,7 +14,7 @@ Aplikasi web static untuk membuka dan melihat berbagai jenis dokumen langsung di
 | Audio | `.mp3`, `.wav`, `.ogg`, `.oga`, `.opus`, `.m4a`, `.aac`, `.flac`, `.weba` | Native `<audio>` |
 | Kode/Teks | `.js`, `.ts`, `.py`, `.php`, `.json`, `.html`, `.css`, `.md`, dll | highlight.js |
 
-File yang tidak didukung akan menampilkan info card dengan tombol download.
+File yang tidak didukung akan menampilkan info card dengan tombol download. Pada mode `?file=`, file dengan ekstensi yang tidak punya viewer (mis. `.zip`) tidak di-download: tombol Download/Buka mengarah langsung ke URL asli, dan ukuran diambil lewat request `HEAD` jika server mengizinkan. URL tanpa ekstensi tetap di-fetch untuk mendeteksi tipenya.
 Saat ini `.pptx`, `.doc`, `.ppt`, dan `.xls` diarahkan ke mode fallback download.
 
 ## Cara Build

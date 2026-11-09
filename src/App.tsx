@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileItem, FileType } from './types';
-import { detectFileType, getFileNameFromUrl, generateId } from './utils/fileUtils';
+import { detectFileType, getFileExtension, getFileNameFromUrl, generateId } from './utils/fileUtils';
 import FileViewer from './components/FileViewer';
 import UploadArea from './components/UploadArea';
 import LoadingIndicator from './components/LoadingIndicator';
@@ -66,7 +66,11 @@ const App: React.FC = () => {
 
       // Image/video/audio: hand the URL straight to the media element.
       // No download, no CORS requirement, and the browser can stream/seek.
-      if (PASSTHROUGH_TYPES.includes(guessedType)) {
+      // A known extension with no viewer (.zip, .exe, ...) is also passed
+      // through: there is nothing to render, so downloading it is wasted work.
+      // Only extension-less URLs still get fetched so their type can be sniffed.
+      const unsupportedExtension = guessedType === 'unknown' && getFileExtension(name) !== '';
+      if (PASSTHROUGH_TYPES.includes(guessedType) || unsupportedExtension) {
         const fileItem: FileItem = {
           id: generateId(),
           name,
