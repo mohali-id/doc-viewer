@@ -1,11 +1,30 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import openjpegWasmUrl from 'pdfjs-dist/wasm/openjpeg.wasm?url';
+import jbig2WasmUrl from 'pdfjs-dist/wasm/jbig2.wasm?url';
 import { ViewerProps } from '../../types';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
   import.meta.url
 ).toString();
+
+// Scanned PDFs often use JPEG2000 (JPX) / JBIG2 images, which pdf.js decodes with wasm.
+// Map the wasm filenames to Vite-hashed asset URLs so they load in dev and build.
+const wasmUrls: Record<string, string> = {
+  'openjpeg.wasm': openjpegWasmUrl,
+  'jbig2.wasm': jbig2WasmUrl,
+};
+
+class BinaryDataFactory {
+  async fetch({ kind, filename }: { kind: string; filename: string }) {
+    const url = kind === 'wasmUrl' ? wasmUrls[filename] : undefined;
+    if (!url) throw new Error(`Unsupported pdf.js binary data: ${kind} ${filename}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  }
+}
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -120,7 +139,7 @@ const PdfViewer: React.FC<ViewerProps> = ({ file }) => {
         // Copy the ArrayBuffer to prevent "detached ArrayBuffer" error
         // pdfjs-dist transfers ownership of the buffer internally
         const dataCopy = file.data.slice(0);
-        const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
+        const loadingTask = pdfjsLib.getDocument({ data: dataCopy, BinaryDataFactory });
         const doc = await loadingTask.promise;
         if (disposed) {
           await disposePdfDoc(doc);

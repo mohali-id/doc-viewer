@@ -20,6 +20,7 @@ export type FileType =
   | 'video'
   | 'audio'
   | 'code'
+  | 'subtitle'
   | 'unknown';
 
 export interface ViewerProps {

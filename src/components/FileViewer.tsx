@@ -11,6 +11,7 @@ const CodeViewer = React.lazy(() => import('./viewers/CodeViewer'));
 const VideoViewer = React.lazy(() => import('./viewers/VideoViewer'));
 const AudioViewer = React.lazy(() => import('./viewers/AudioViewer'));
 const HtmlViewer = React.lazy(() => import('./viewers/HtmlViewer'));
+const SrtViewer = React.lazy(() => import('./viewers/SrtViewer'));
 
 interface FileViewerProps {
   file: FileItem;
@@ -34,6 +35,8 @@ const FileViewer: React.FC<FileViewerProps> = ({ file }) => {
         return <VideoViewer file={file} />;
       case 'audio':
         return <AudioViewer file={file} />;
+      case 'subtitle':
+        return <SrtViewer file={file} />;
       case 'html':
         return <HtmlViewer file={file} />;
       default:

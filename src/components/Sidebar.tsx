@@ -21,6 +21,7 @@ const fileTypeIcons: Record<string, string> = {
   video: '🎬',
   audio: '🎵',
   code: '💻',
+  subtitle: '💬',
   unknown: '📁',
 };
 

@@ -67,6 +67,7 @@ const EXT_MAP: Record<string, FileType> = {
   toml: 'code',
   env: 'code',
   log: 'code',
+  srt: 'subtitle',
 };
 
 const MIME_MAP: Record<string, FileType> = {
@@ -110,6 +111,7 @@ const MIME_MAP: Record<string, FileType> = {
   'text/markdown': 'code',
   'text/xml': 'code',
   'application/xml': 'code',
+  'application/x-subrip': 'subtitle',
 };
 
 // Magic number signatures
