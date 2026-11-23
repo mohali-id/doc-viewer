@@ -9,14 +9,17 @@ Aplikasi web static untuk membuka dan melihat berbagai jenis dokumen langsung di
 | PDF | `.pdf` | pdfjs-dist |
 | Word (modern) | `.docx` | mammoth.js |
 | Excel | `.xlsx`, `.csv` | SheetJS, PapaParse |
+| PowerPoint | `.pptx` | JSZip (teks, gambar, bentuk berwarna; tanpa chart/tabel/tema, gambar EMF jadi placeholder) |
 | Gambar | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` | Native `<img>` |
 | Video | `.mp4`, `.webm`, `.ogv`, `.mov`, `.avi`, `.mkv` | Native `<video>` |
 | Audio | `.mp3`, `.wav`, `.ogg`, `.oga`, `.opus`, `.m4a`, `.aac`, `.flac`, `.weba` | Native `<audio>` |
-| Subtitle | `.srt` | Parser bawaan |
-| Kode/Teks | `.js`, `.ts`, `.py`, `.php`, `.json`, `.html`, `.css`, `.md`, dll | highlight.js |
+| Subtitle | `.srt`, `.vtt` | Parser bawaan |
+| Markdown | `.md`, `.markdown` | marked + DOMPurify |
+| Arsip | `.zip` | JSZip (daftar isi saja) |
+| Kode/Teks | `.js`, `.ts`, `.py`, `.php`, `.json`, `.html`, `.css`, dll | highlight.js |
 
-File yang tidak didukung akan menampilkan info card dengan tombol download. Pada mode `?file=`, file dengan ekstensi yang tidak punya viewer (mis. `.zip`) tidak di-download: tombol Download/Buka mengarah langsung ke URL asli, dan ukuran diambil lewat request `HEAD` jika server mengizinkan. URL tanpa ekstensi tetap di-fetch untuk mendeteksi tipenya.
-Saat ini `.pptx`, `.doc`, `.ppt`, dan `.xls` diarahkan ke mode fallback download.
+File yang tidak didukung akan menampilkan info card dengan tombol download. Pada mode `?file=`, file dengan ekstensi yang tidak punya viewer (mis. `.rar`, `.exe`) tidak di-download: tombol Download/Buka mengarah langsung ke URL asli, dan ukuran diambil lewat request `HEAD` jika server mengizinkan. URL tanpa ekstensi tetap di-fetch untuk mendeteksi tipenya.
+Saat ini `.doc`, `.ppt`, dan `.xls` diarahkan ke mode fallback download.
 
 ## Cara Build
 

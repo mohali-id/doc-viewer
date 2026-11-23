@@ -22,6 +22,8 @@ const fileTypeIcons: Record<string, string> = {
   audio: '🎵',
   code: '💻',
   subtitle: '💬',
+  markdown: '📖',
+  zip: '🗜️',
   unknown: '📁',
 };
 

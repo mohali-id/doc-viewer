@@ -5,6 +5,7 @@ const EXT_MAP: Record<string, FileType> = {
   docx: 'docx',
   xlsx: 'xlsx',
   csv: 'csv',
+  pptx: 'pptx',
   // Video
   mp4: 'video',
   webm: 'video',
@@ -49,7 +50,8 @@ const EXT_MAP: Record<string, FileType> = {
   h: 'code',
   hpp: 'code',
   sql: 'code',
-  md: 'code',
+  md: 'markdown',
+  markdown: 'markdown',
   yml: 'code',
   yaml: 'code',
   sh: 'code',
@@ -68,6 +70,8 @@ const EXT_MAP: Record<string, FileType> = {
   env: 'code',
   log: 'code',
   srt: 'subtitle',
+  vtt: 'subtitle',
+  zip: 'zip',
 };
 
 const MIME_MAP: Record<string, FileType> = {
@@ -75,6 +79,7 @@ const MIME_MAP: Record<string, FileType> = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   'text/csv': 'csv',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
   // Video
   'video/mp4': 'video',
   'video/webm': 'video',
@@ -108,10 +113,13 @@ const MIME_MAP: Record<string, FileType> = {
   'text/css': 'code',
   'application/javascript': 'code',
   'application/json': 'code',
-  'text/markdown': 'code',
+  'text/markdown': 'markdown',
   'text/xml': 'code',
   'application/xml': 'code',
   'application/x-subrip': 'subtitle',
+  'text/vtt': 'subtitle',
+  'application/zip': 'zip',
+  'application/x-zip-compressed': 'zip',
 };
 
 // Magic number signatures

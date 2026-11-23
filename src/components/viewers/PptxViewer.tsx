@@ -68,7 +68,7 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   thumbnailActive: {
-    borderColor: 'var(--accent-color)',
+    border: '2px solid var(--accent-color)', // shorthand, so it doesn't conflict with thumbnail.border
     backgroundColor: 'var(--bg-primary)',
   },
   slideArea: {
@@ -143,6 +143,7 @@ type SlideElement =
       color?: string;
       align?: React.CSSProperties['textAlign'];
       backgroundColor?: string;
+      rounded?: boolean;
     }
   | {
       kind: 'image';
@@ -154,13 +155,14 @@ type SlideElement =
 
 const DEFAULT_SLIDE_SIZE: SlideSize = { cx: 9144000, cy: 6858000 };
 
-function getDescendantsByLocalName(root: Element, localName: string): Element[] {
+/** Matching descendants in document order (= PowerPoint z-order for shapes). */
+function getDescendantsByLocalName(root: Element, ...localNames: string[]): Element[] {
   const out: Element[] = [];
   const walk = (node: Element) => {
     const children = node.children;
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
-      if (child.localName === localName) out.push(child);
+      if (localNames.includes(child.localName)) out.push(child);
       walk(child);
     }
   };
@@ -184,6 +186,16 @@ function getFirstDescendantByLocalName(root: Element, localName: string): Elemen
 function getAttr(el: Element | null, name: string): string {
   if (!el) return '';
   return el.getAttribute(name) || '';
+}
+
+/** a:srgbClr (with optional a:alpha child) → CSS color. Theme (scheme) colors are not resolved. */
+function srgbToCss(clr: Element | null): string | undefined {
+  const val = getAttr(clr, 'val');
+  if (!/^[0-9a-f]{6}$/i.test(val)) return undefined;
+  const alpha = parseInt(getAttr(clr ? getFirstChildByLocalName(clr, 'alpha') : null, 'val'), 10);
+  if (Number.isNaN(alpha)) return `#${val}`;
+  const n = parseInt(val, 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${alpha / 100000})`;
 }
 
 function normalizePath(path: string): string {
@@ -289,7 +301,7 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
       return runs.map((r) => r.textContent || '').join('');
     };
 
-    const parseShapeText = (shape: Element): { text: string; fontSize?: number; color?: string; align?: React.CSSProperties['textAlign']; backgroundColor?: string } => {
+    const parseShapeText = (shape: Element): { text: string; fontSize?: number; color?: string; align?: React.CSSProperties['textAlign']; backgroundColor?: string; rounded: boolean } => {
       const paragraphs = getDescendantsByLocalName(shape, 'p');
       const text = paragraphs.map(parseParagraphText).filter(Boolean).join('\n').trim();
 
@@ -297,18 +309,15 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
       const sizeRaw = parseInt(getAttr(firstRPr, 'sz'), 10);
       const fontSize = Number.isNaN(sizeRaw) ? undefined : (sizeRaw / 100) * (96 / 72);
 
-      let color: string | undefined;
-      const solidFill = getFirstDescendantByLocalName(firstRPr || shape, 'solidFill');
-      const rgb = getFirstDescendantByLocalName(solidFill || shape, 'srgbClr');
-      const val = getAttr(rgb, 'val');
-      if (val) color = `#${val}`;
+      // Only the run's own fill; falling back to the whole shape would pick up the shape fill.
+      const runFill = firstRPr ? getFirstChildByLocalName(firstRPr, 'solidFill') : null;
+      const color = srgbToCss(runFill ? getFirstChildByLocalName(runFill, 'srgbClr') : null);
 
-      let backgroundColor: string | undefined;
-      const spPr = getFirstDescendantByLocalName(shape, 'spPr');
-      const fill = spPr ? getFirstDescendantByLocalName(spPr, 'solidFill') : null;
-      const fillRgb = fill ? getFirstDescendantByLocalName(fill, 'srgbClr') : null;
-      const fillVal = getAttr(fillRgb, 'val');
-      if (fillVal) backgroundColor = `#${fillVal}`;
+      // Direct child only: a:ln also contains a:solidFill (the outline color).
+      const spPr = getFirstChildByLocalName(shape, 'spPr');
+      const fill = spPr ? getFirstChildByLocalName(spPr, 'solidFill') : null;
+      const backgroundColor = srgbToCss(fill ? getFirstChildByLocalName(fill, 'srgbClr') : null);
+      const rounded = getAttr(spPr ? getFirstChildByLocalName(spPr, 'prstGeom') : null, 'prst') === 'roundRect';
 
       let align: React.CSSProperties['textAlign'];
       const pPr = getFirstDescendantByLocalName(shape, 'pPr');
@@ -317,7 +326,7 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
       else if (algn === 'r') align = 'right';
       else align = 'left';
 
-      return { text, fontSize, color, align, backgroundColor };
+      return { text, fontSize, color, align, backgroundColor, rounded };
     };
 
     const buildImageUrl = async (zip: JSZip, absPath: string): Promise<string | null> => {
@@ -369,26 +378,21 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
 
           const elements: SlideElement[] = [];
 
-          const shapeNodes = getDescendantsByLocalName(root, 'sp');
-          for (const shape of shapeNodes) {
-            const pos = parsePosition(shape);
-            const parsedText = parseShapeText(shape);
-            if (!parsedText.text) continue;
+          for (const node of getDescendantsByLocalName(root, 'sp', 'pic')) {
+            if (node.localName === 'sp') {
+              const parsedText = parseShapeText(node);
+              if (!parsedText.text && !parsedText.backgroundColor) continue;
 
-            elements.push({
-              kind: 'text',
-              id: `s-${i}-sp-${elements.length}`,
-              pos,
-              text: parsedText.text,
-              fontSize: parsedText.fontSize,
-              color: parsedText.color,
-              align: parsedText.align,
-              backgroundColor: parsedText.backgroundColor,
-            });
-          }
+              elements.push({
+                kind: 'text',
+                id: `s-${i}-sp-${elements.length}`,
+                pos: parsePosition(node),
+                ...parsedText,
+              });
+              continue;
+            }
 
-          const pictureNodes = getDescendantsByLocalName(root, 'pic');
-          for (const pic of pictureNodes) {
+            const pic = node;
             const pos = parsePosition(pic);
             const blip = getFirstDescendantByLocalName(pic, 'blip');
             const embedId = getAttr(blip, 'r:embed') || getAttr(blip, 'embed');
@@ -398,6 +402,20 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
             if (!relTarget) continue;
 
             const mediaPath = resolveTarget('ppt/slides', relTarget);
+            if (getMimeFromFilePath(mediaPath) === 'application/octet-stream') {
+              // EMF/WMF/TIFF etc.: browsers can't render them, show a placeholder instead of a broken <img>.
+              elements.push({
+                kind: 'text',
+                id: `s-${i}-img-${elements.length}`,
+                pos,
+                text: `[Gambar .${mediaPath.split('.').pop()} tidak bisa ditampilkan]`,
+                fontSize: 14,
+                color: '#666666',
+                align: 'center',
+                backgroundColor: '#eeeeee',
+              });
+              continue;
+            }
             const src = await buildImageUrl(zip, mediaPath);
             if (!src) continue;
 
@@ -414,7 +432,7 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
             });
           }
 
-          const firstText = elements.find((el) => el.kind === 'text') as SlideElement | undefined;
+          const firstText = elements.find((el) => el.kind === 'text' && el.text && el.id.includes('-sp-'));
           parsed.push({
             index: i + 1,
             preview: firstText && firstText.kind === 'text' ? firstText.text : 'Image/graphic slide',
@@ -453,6 +471,10 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
 
   const toPercentX = (x: number) => `${(x / slideSize.cx) * 100}%`;
   const toPercentY = (y: number) => `${(y / slideSize.cy) * 100}%`;
+  // Sizes relative to slide width (cqw on the slide card) so text scales with the slide. 9525 EMU = 1px.
+  const pxToCqw = (px: number) => `${((px * 9525) / slideSize.cx) * 100}cqw`;
+  // PowerPoint default text insets: 0.1in left/right, 0.05in top/bottom (% padding = % of slide width).
+  const textPadding = `${toPercentX(45720)} ${toPercentX(91440)}`;
 
   return (
     <div style={styles.container}>
@@ -494,7 +516,18 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
           ))}
         </div>
         <div style={styles.slideArea}>
-          <div style={{ ...styles.slideCard, position: 'relative', aspectRatio, padding: 0, overflow: 'hidden' }}>
+          <div
+            style={{
+              ...styles.slideCard,
+              position: 'relative',
+              aspectRatio,
+              padding: 0,
+              overflow: 'hidden',
+              minHeight: 0,
+              containerType: 'inline-size',
+              backgroundColor: '#ffffff', // slides are white by default, independent of app theme
+            }}
+          >
             {current.elements.length > 0 ? (
               current.elements.map((el) => {
                 const baseStyle: React.CSSProperties = {
@@ -526,14 +559,15 @@ const PptxViewer: React.FC<ViewerProps> = ({ file }) => {
                     key={el.id}
                     style={{
                       ...baseStyle,
-                      ...styles.slideText,
-                      marginBottom: 0,
-                      padding: '6px 8px',
-                      overflow: 'hidden',
-                      fontSize: el.fontSize ? `${Math.max(11, Math.min(48, el.fontSize))}px` : '16px',
-                      color: el.color || 'var(--text-primary)',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.2,
+                      padding: textPadding,
+                      fontSize: pxToCqw(el.fontSize ?? 24), // 18pt PowerPoint default
+                      color: el.color || '#000000',
                       textAlign: el.align || 'left',
                       backgroundColor: el.backgroundColor || 'transparent',
+                      // roundRect default corner = 16.667% of the shorter side
+                      borderRadius: el.rounded ? pxToCqw((Math.min(el.pos.w, el.pos.h) * 0.16667) / 9525) : undefined,
                     }}
                   >
                     {el.text}

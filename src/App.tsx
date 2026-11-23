@@ -8,7 +8,7 @@ import ErrorDisplay from './components/ErrorDisplay';
 import './App.css';
 
 const PASSTHROUGH_TYPES: FileType[] = ['image', 'video', 'audio'];
-const TYPE_HINTS: FileType[] = ['pdf', 'docx', 'xlsx', 'csv', 'html', 'image', 'video', 'audio', 'code', 'subtitle'];
+const TYPE_HINTS: FileType[] = ['pdf', 'docx', 'xlsx', 'csv', 'pptx', 'html', 'image', 'video', 'audio', 'code', 'subtitle', 'markdown', 'zip'];
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);

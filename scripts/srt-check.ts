@@ -14,4 +14,13 @@ assert.deepEqual(cues[0], { index: 1, start: '00:00:01,000', end: '00:00:02,500'
 assert.deepEqual(cues[1], { index: 2, start: '00:00:03,000', end: '00:00:04,000', text: 'Atas' });
 assert.equal(cues[2].text, 'Tanpa nomor');
 assert.deepEqual(parseSrt(''), []);
+
+const vtt =
+  'WEBVTT - judul\n\nNOTE komentar\n\nSTYLE\n::cue { color: red }\n\n' +
+  'intro\n01:02.500 --> 01:04.000 align:start line:0\n<v Budi>Halo <c.kuning>semua</c></v>\n\n' +
+  '01:00:00.000 --> 01:00:01.000\n<00:00:00.500>Karaoke\n';
+const vcues = parseSrt(vtt);
+assert.equal(vcues.length, 2);
+assert.deepEqual(vcues[0], { index: 1, start: '00:01:02,500', end: '00:01:04,000', text: 'Halo semua' });
+assert.deepEqual(vcues[1], { index: 2, start: '01:00:00,000', end: '01:00:01,000', text: 'Karaoke' });
 console.log('srt-check OK');

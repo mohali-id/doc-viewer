@@ -14,6 +14,7 @@ export type FileType =
   | 'pdf'
   | 'docx'
   | 'xlsx'
+  | 'pptx'
   | 'csv'
   | 'html'
   | 'image'
@@ -21,6 +22,8 @@ export type FileType =
   | 'audio'
   | 'code'
   | 'subtitle'
+  | 'markdown'
+  | 'zip'
   | 'unknown';
 
 export interface ViewerProps {
